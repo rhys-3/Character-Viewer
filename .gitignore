@@ -1,0 +1,35 @@
+# 依赖
+node_modules
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# 自动生成
+auto-imports.d.ts
+components.d.ts
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 模板目录（不上传）
+tavern_helper_template/

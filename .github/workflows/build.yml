@@ -1,0 +1,43 @@
+name: Build HTML Files
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'src/**'
+      - 'build.py'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Python环境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        
+    - name: 构建HTML文件
+      run: python3 build.py
+      
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: html-files
+        path: dist/*.html
+        retention-days: 90
+        
+    - name: 提交构建结果到仓库
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add dist/
+        git diff --quiet && git diff --staged --quiet || (git commit -m "🤖 自动构建: 更新HTML文件 [skip ci]" && git push)

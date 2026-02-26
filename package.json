@@ -1,29 +1,24 @@
 {
   "name": "character-viewer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "角色查看器 - 小初和貂貂的角色查看工具",
-  "main": "index.js",
+  "main": "build.py",
   "scripts": {
-    "dev": "webpack serve --mode development",
-    "build": "webpack --mode production",
-    "build:xiaochui": "webpack --mode production --env viewer=xiaochui",
-    "build:diaodiao": "webpack --mode production --env viewer=diaodiao",
-    "serve": "python3 -m http.server 8080 --directory dist"
+    "build": "python3 build.py",
+    "split": "python3 split_html.py",
+    "serve": "python3 -m http.server 8080 --directory dist",
+    "clean": "rm -rf dist"
   },
   "keywords": [
     "character",
     "viewer",
-    "tavern"
+    "tavern",
+    "html"
   ],
   "author": "",
   "license": "MIT",
-  "devDependencies": {
-    "copy-webpack-plugin": "^11.0.0",
-    "css-loader": "^6.8.1",
-    "html-webpack-plugin": "^5.5.3",
-    "style-loader": "^3.3.3",
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/Character-Viewer.git"
   }
 }
