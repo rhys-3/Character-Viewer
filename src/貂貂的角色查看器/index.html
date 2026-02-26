@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <!-- 保留一个什么都没有的 <head> 标签, webpack 打包时会在这里插入样式、脚本等 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Noto+Sans+SC:wght@300;400;700&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="card-wrapper">
+        <div class="character-sheet">
+            <!-- ======[ 動態背景容器 START ]====== -->
+            <div class="dynamic-bg-container">
+                <div class="particle p1"></div><div class="particle p2"></div><div class="particle p3"></div>
+                <div class="particle p4"></div><div class="particle p5"></div><div class="particle p6"></div>
+                <div class="particle p7"></div><div class="particle p8"></div><div class="particle p9"></div>
+                <div class="particle p10"></div><div class="particle p11"></div><div class="particle p12"></div>
+            </div>
+            <!-- ======[ 動態背景容器 END ]====== -->
+            <div class="frame-layer" id="frame-layer"></div>
+            <header class="sheet-header">
+                <div class="char-name" data-name></div>
+                <div class="char-sub-info">
+                    <div class="char-level" data-level></div>
+                    <div class="char-tier" data-tier-name></div>
+                </div>
+            </header>
+            <main class="sheet-body">
+                <section class="core-info"><h2 class="visually-hidden">核心信息</h2><div class="info-grid" data-core-info></div></section>
+                <section class="attributes-section"><h2 class="visually-hidden">属性</h2><div class="attributes-grid" data-attributes></div></section>
+                <section class="vitals-section"><h2 class="visually-hidden">状态</h2><div class="vitals-grid" data-vitals></div></section>
+                <div class="tab-container">
+                    <nav class="tab-nav">
+                        <button class="tab-button" data-tab-target="#tab-profile">档案</button>
+                        <button class="tab-button" data-tab-target="#tab-skills">技能</button>
+                        <button class="tab-button" data-tab-target="#tab-divinity">登神长阶</button>
+                        <button class="tab-button" data-tab-target="#tab-equipment">装备</button>
+                        <button class="tab-button" data-tab-target="#tab-inventory">物品</button>
+                        <button class="tab-button" data-tab-target="#tab-backstory">背景故事</button>
+                    </nav>
+                    <div class="tab-content-container">
+                        <div id="tab-profile" class="tab-content"></div>
+                        <div id="tab-skills" class="tab-content"></div>
+                        <div id="tab-divinity" class="tab-content"></div>
+                        <div id="tab-equipment" class="tab-content"></div>
+                        <div id="tab-inventory" class="tab-content"></div>
+                        <div id="tab-backstory" class="tab-content"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <script id="data-source" type="text/yaml">$1</script>
+
+</body>
+</html>
