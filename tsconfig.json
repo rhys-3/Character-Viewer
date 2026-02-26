@@ -21,7 +21,6 @@
     "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "suppressImplicitAnyIndexErrors": true,
     "noImplicitOverride": false
   },
   "include": ["src/**/*"],

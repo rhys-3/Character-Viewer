@@ -4,6 +4,11 @@ declare const _: any;
 declare const $: any;
 declare const toastr: any;
 
+// 扩展 Window 类型
+interface Window {
+  TavernHelper: any;
+}
+
 // 扩展 Element 类型
 interface Element {
   dataset: DOMStringMap;
@@ -21,12 +26,12 @@ interface HTMLElement {
   getContext?(contextId: '2d'): CanvasRenderingContext2D | null;
 }
 
-// Particle 类型定义
-interface Particle {
+// Particle 类型定义 - 使用 type 而不是 interface 避免冲突
+type Particle = {
   x: number;
   y: number;
   size: number;
   speedY: number;
   sway: number;
   opacity: number;
-}
+};
