@@ -884,7 +884,7 @@ const raceColorMap = {
 
             // Detect variable path prefix
             let prefix = 'stat_data.';
-            const targetScope = { type: 'message', message_id: 'latest' };
+            const targetScope = { type: 'message' as const, message_id: 'latest' as const };
             let currentVars = null;
 
             try {

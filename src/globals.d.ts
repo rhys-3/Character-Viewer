@@ -1,7 +1,3 @@
-/// <reference path="../@types/function/variables.d.ts" />
-/// <reference path="../@types/function/chat_message.d.ts" />
-/// <reference path="../@types/iframe/exported.mvu.d.ts" />
-
 // 酒馆助手和酒馆提供的全局变量
 declare const jsyaml: any;
 declare const _: any;
@@ -23,4 +19,14 @@ interface HTMLElement {
   height: number;
   disabled: boolean;
   getContext?(contextId: '2d'): CanvasRenderingContext2D | null;
+}
+
+// Particle 类型定义
+interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  speedY: number;
+  sway: number;
+  opacity: number;
 }

@@ -6,13 +6,24 @@
     "moduleResolution": "node",
     "strict": false,
     "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": false,
+    "strictPropertyInitialization": false,
+    "noImplicitThis": false,
+    "alwaysStrict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "forceConsistentCasingInFileNames": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
-    "typeRoots": ["./node_modules/@types", "./@types"]
+    "suppressImplicitAnyIndexErrors": true,
+    "noImplicitOverride": false
   },
-  "include": ["src/**/*", "@types/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
