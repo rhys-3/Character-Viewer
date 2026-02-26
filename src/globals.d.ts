@@ -1,3 +1,7 @@
+/// <reference path="../@types/function/variables.d.ts" />
+/// <reference path="../@types/function/chat_message.d.ts" />
+/// <reference path="../@types/iframe/exported.mvu.d.ts" />
+
 // 酒馆助手和酒馆提供的全局变量
 declare const jsyaml: any;
 declare const _: any;
@@ -10,6 +14,7 @@ interface Element {
   style: CSSStyleDeclaration;
   offsetWidth: number;
   offsetHeight: number;
+  getContext?(contextId: '2d'): CanvasRenderingContext2D | null;
 }
 
 // 扩展 HTMLElement 类型
@@ -17,19 +22,5 @@ interface HTMLElement {
   width: number;
   height: number;
   disabled: boolean;
-}
-
-// HTMLCanvasElement 类型
-interface HTMLCanvasElement {
-  getContext(contextId: '2d'): CanvasRenderingContext2D | null;
-}
-
-// 自定义 Particle 类型
-interface Particle {
-  x: number;
-  y: number;
-  size: number;
-  speedY: number;
-  sway: number;
-  opacity: number;
+  getContext?(contextId: '2d'): CanvasRenderingContext2D | null;
 }
