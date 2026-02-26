@@ -137,7 +137,58 @@ document.addEventListener('DOMContentLoaded', () => {
            function hexToRgb(hex) { if (!hex || typeof hex !== 'string') return '128, 128, 128'; hex = hex.replace(/^#/, ''); if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2]; const r = parseInt(hex.substring(0, 2), 16); const g = parseInt(hex.substring(2, 4), 16); const b = parseInt(hex.substring(4, 6), 16); return `${r}, ${g}, ${b}`; }
             function getSmartArray(input) { if (input === undefined || input === null) return []; if (Array.isArray(input)) return input; const str = String(input).trim(); if (!str || str.toLowerCase() === 'null' || str.toLowerCase() === 'none') return []; let processed = str.replace(/\]\s*\[/g, '], ['); processed = processed.replace(/^[\s\["']+|[\s\]"']+$/g, ''); const items = processed.split(/[,;|，；、]/); return items.map(s => s.trim().replace(/^['"\[\(]+|['"\]\)]+$/g, '')).filter(s => s && s !== 'null'); }
             function cleanYaml(yamlStr){if(!yamlStr)return'';yamlStr=yamlStr.replace(/\u00A0/g,' ').replace(/\t/g,'  ').replace(/：/g,': ').replace(/，/g,',').replace(/；/g,';').replace(/】/g,']').replace(/【/g,'[');const lines=yamlStr.split('\n');const sensitiveKeys=['身份','职业','性格','喜爱','外貌特质','衣物装饰','背景故事','描述','效果','标签','消耗','类型','品质','神位','名称','姓名','种族','等级','生命层级', '職業', '喜愛', '外貌特質', '衣物裝飾', '等級', '生命層級', '品質', '類型', '標籤', '名稱', '種族', '裝備', '分類', '權能', '法則', '被動效果', '主動效果'];const attrKeys=['力量','敏捷','体质','智力','精神', '體質'];const cleanedLines=lines.map(line=>{const match=line.match(/^(\s*)([-\w\u4e00-\u9fa5]+)\s*:\s*(.+)$/);if(!match)return line;const indent=match[1];const key=match[2];let val=match[3].trim();if(val.startsWith('|')||val.startsWith('>'))return line;if(attrKeys.some(k=>key.includes(k))){if((/[+=]/.test(val)||val.includes('{'))&&!/^["'].*["']$/.test(val)){val=val.replace(/"/g,'\\"');return`${indent}${key}: \"${val}\"`;}}const isSensitive=sensitiveKeys.some(k=>key.includes(k));const hasDangerousChars=/[\{\}\[\]]/.test(val);const hasQuoteInside=val.includes('\"');const isFullyQuoted=/^["'].*["']$/.test(val);if((isSensitive||hasDangerousChars||hasQuoteInside)&&!isFullyQuoted){val=val.replace(/"/g,'\\"');return`${indent}${key}: \"${val}\"`;}return line;});return cleanedLines.join('\n');}
-            function parseRobust(yamlStr) { try { return jsyaml.load(cleanYaml(yamlStr)); } catch (e) { console.error('YAML Parsing failed:', e, 'Cleaned YAML:', cleanYaml(yamlStr)); return null; } }
+            
+            function escapeHtml(str) { const div = document.createElement('div'); div.textContent = String(str ?? ''); return div.innerHTML; }
+            function visualizeForDisplay(str) { return String(str ?? '').replace(/\t/g, '⇥').replace(/\u00A0/g, '⍽'); }
+            
+            function buildFriendlyYamlError(e, originalYaml, cleanedYaml) {
+                const msg = escapeHtml((e && (e.reason || e.message)) || String(e));
+                const mark = e && e.mark;
+                if (!mark || typeof mark.line !== 'number') return `<div>${msg}</div>`;
+                const lineIndex = mark.line;
+                const column = typeof mark.column === 'number' ? mark.column : 0;
+                const originalLines = String(originalYaml ?? '').split('\n');
+                const cleanedLines = String(cleanedYaml ?? '').split('\n');
+                const originalLine = originalLines[lineIndex] ?? '';
+                const cleanedLine = cleanedLines[lineIndex] ?? '';
+                const cleanVisualRaw = visualizeForDisplay(cleanedLine);
+                const originalVisualRaw = visualizeForDisplay(originalLine);
+                const safeCleanLine = escapeHtml(cleanVisualRaw);
+                const safeOriginalLine = escapeHtml(originalVisualRaw);
+                const caretPad = ' '.repeat(Math.max(0, Math.min(column, cleanVisualRaw.length)));
+                const caretLine = `${caretPad}^`;
+                const symbol = cleanedLine.charAt(column) || '';
+                const codePoint = symbol ? symbol.codePointAt(0).toString(16).toUpperCase().padStart(4, '0') : '';
+                const symbolInfo = symbol ? `出错位置字符（用于解析的文本）：<span style="color:#ff6b6b;font-weight:700;">${escapeHtml(symbol)}</span> <span style="opacity:0.8">(U+${codePoint})</span>` : `出错位置在行尾附近（常见原因：缺少引号/括号/冒号，或缩进不对齐）`;
+                const start = Math.max(0, lineIndex - 2);
+                const end = Math.min(originalLines.length - 1, lineIndex + 2);
+                const ctx = [];
+                for (let i = start; i <= end; i++) {
+                    const ln = String(i + 1).padStart(4, ' ');
+                    const text = escapeHtml(visualizeForDisplay(originalLines[i] ?? ''));
+                    const isErr = i === lineIndex;
+                    ctx.push(`${isErr ? '➡️' : '  '} ${ln} | ${text}`);
+                }
+                const hints = [];
+                if (/\t/.test(originalLine)) hints.push('该行包含 TAB（⇥）：请用空格替换 TAB，YAML 缩进必须用空格。');
+                if (/^\s*([-\w\u4e00-\u9fa5]+)\s*：/.test(originalLine)) hints.push('该行 key 使用了全角冒号（：）：请改为半角冒号（:）。');
+                if (/^\s*-\s*([-\w\u4e00-\u9fa5]+)\s*：/.test(originalLine)) hints.push('该行列表项 key 使用了全角冒号（：）：请改为半角冒号（:）。');
+                if (/[【】]/.test(originalLine)) hints.push('发现全角方括号（【】）：请改为 []。');
+                const hintsHtml = hints.length > 0 ? `<div style="margin-top:10px;"><div style="font-weight:700;margin-bottom:6px;">可能的修复方向</div><ul style="margin:0 0 0 18px;padding:0;line-height:1.5;">${hints.map(h => `<li>${escapeHtml(h)}</li>`).join('')}</ul></div>` : '';
+                return `<div style="margin-bottom:6px;"><b>定位</b>：第 ${lineIndex + 1} 行，第 ${column + 1} 列</div><div style="margin-bottom:8px;opacity:0.95;"><b>原因</b>：${msg}</div><div style="margin-bottom:10px;">${symbolInfo}</div><div style="font-weight:700;margin-bottom:6px;">用于解析的该行（已自动清洗）</div><pre style="margin:0; padding:10px; border-radius:6px; background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.12); white-space:pre; overflow:auto;">${safeCleanLine}\n${escapeHtml(caretLine)}</pre><details style="margin-top:10px;"><summary style="cursor:pointer; user-select:none;">查看原始数据附近几行（带行号）</summary><pre style="margin-top:8px; padding:10px; border-radius:6px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.10); white-space:pre; overflow:auto;">${ctx.join('\n')}</pre></details><details style="margin-top:10px;"><summary style="cursor:pointer; user-select:none;">查看原始该行</summary><pre style="margin-top:8px; padding:10px; border-radius:6px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.10); white-space:pre; overflow:auto;">${safeOriginalLine}</pre></details><div style="margin-top:10px; font-size:0.85rem; opacity:0.85;">注：列号基于"用于解析的文本（已清洗）"，通常与原始文本一致；若行首被自动修正（例如把"："变为":"），列号可能会有极小偏差。</div>${hintsHtml}`;
+            }
+            
+            function parseRobust(yamlStr) { 
+                const cleaned = cleanYaml(yamlStr);
+                try { 
+                    const data = jsyaml.load(cleaned); 
+                    if (!data) throw new Error('解析结果为空');
+                    return { success: true, data: data };
+                } catch (e) { 
+                    console.error('Parsing failed:', e); 
+                    return { success: false, error: buildFriendlyYamlError(e, yamlStr, cleaned) };
+                }
+            }
             function hasText(val) { if (val === null || val === undefined) return false; const s = String(val).trim().toLowerCase(); return s !== '' && s !== 'null' && s !== 'none' && s !== '[]' && s !== '无' && s !== '無'; }
             function hasArrayContent(arr) { if (!arr || !Array.isArray(arr)) return false; return arr.length > 0 && arr.some(item => hasText(item)); }
 
@@ -191,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 frameLayer.innerHTML = frameHTML;
                 frameLayer.style.display = (tier >= 3) ? 'block' : 'none';
                 
-                addLorebookButton(data, originalYaml);
+                addImportButton(data, originalYaml);
                 document.querySelector('[data-name]').textContent = data.姓名 || data.名稱 || 'Unknown';
                 document.querySelector('[data-level]').textContent = `Lv. ${data.等级 || data.等級 || '?'}`;
                 document.querySelector('[data-tier-name]').textContent = data.生命层级 || data.生命層級 || 'T?';
@@ -309,24 +360,257 @@ document.addEventListener('DOMContentLoaded', () => {
             function createLawCard(item) { const passive = (item.被动效果 || item.被動效果 || '无').replace(/\n/g, '<br>'); const active = (item.主动效果 || item.主動效果 || '无').replace(/\n/g, '<br>'); return `<div class="card"><div class="card-header"><h3 class="card-title">${item.名称 || item.名稱 || ''}</h3></div><div class="card-body"><p>${item.描述 || ''}</p><p><span class="card-label">被动效果:</span> ${passive}</p><p><span class="card-label">主动效果:</span> ${active}</p></div></div>`; }
             function createGenericCard(item) { const content = (item.效果 || item.描述 || '无').replace(/\n/g, '<br>'); return `<div class="card"><div class="card-header"><h3 class="card-title">${item.名称 || item.名稱 || ''}</h3></div><div class="card-body"><p>${content}</p></div></div>`; }
             
-            function addLorebookButton(data, originalYaml) {
-                const header = document.querySelector('.sheet-header'); if (!header) return;
-                let button = document.getElementById('save-to-lorebook-btn'); if (button) button.remove();
-                button = document.createElement('button'); button.id = 'save-to-lorebook-btn'; button.innerHTML = '💾 <span class="btn-text">保存到世界书</span>';
-                button.addEventListener('click', async (e) => {
-                    e.stopPropagation(); const api = window.TavernHelper || window;
-                    if (typeof api.getOrCreateChatWorldbook !== 'function' || typeof api.createWorldbookEntries !== 'function') { alert('错误：未检测到 Worldbook API (TavernHelper)。'); return; }
+            function parseAttributeValue(val) {
+                if (val === undefined || val === null) return 0;
+                const str = String(val).trim();
+                if (str.includes('=')) {
+                    const parts = str.split('=');
+                    const lastPart = parts[parts.length - 1].trim();
+                    return parseInt(lastPart) || 0;
+                }
+                return parseInt(str) || 0;
+            }
+            
+            async function importToMvuVariables(data, button) {
+                const api = window.TavernHelper || (window.parent && window.parent.TavernHelper) || window;
+                if (!api || typeof api.getVariables !== 'function' || typeof api.insertOrAssignVariables !== 'function') {
+                    console.error('TavernHelper API not found');
+                    alert('错误：未检测到 TavernHelper API (getVariables / insertOrAssignVariables)。\n请确保酒馆助手插件已安装并启用。');
+                    return;
+                }
+                if (!confirm(`确定要将角色 "${data.姓名 || 'Unknown'}" 导入到 MVU 变量系统(命定系统.关系列表)吗？\n如果已存在同名角色，将会覆盖其数据。`)) {
+                    return;
+                }
+                try {
+                    const oldText = button.textContent;
+                    button.textContent = '⏳';
+                    const charName = data.姓名 || 'Unknown';
+                    const ensureString = val => { if (Array.isArray(val)) return val.join(', '); return val ? String(val) : ''; };
+                    const ensureArray = val => { return getSmartArray(val); };
+                    const arrayToMap = (arr, type) => {
+                        const map = {};
+                        if (Array.isArray(arr)) {
+                            arr.forEach(item => {
+                                if (item && item.名称) {
+                                    const { 名称, ...rest } = item;
+                                    const processed = { ...rest };
+                                    if (processed.标签) {
+                                        processed.标签 = ensureArray(processed.标签);
+                                    } else if (type === 'skill' || type === 'equip') {
+                                        processed.标签 = [];
+                                    }
+                                    if (type !== 'divinity') {
+                                        if (typeof processed.效果 === 'string') {
+                                            processed.效果 = { 描述: processed.效果 };
+                                        } else if (!processed.效果) {
+                                            processed.效果 = {};
+                                        }
+                                    }
+                                    if (type === 'equip') {
+                                        processed.品质 = processed.品质 || '未知';
+                                        processed.类型 = processed.分类 || processed.类型 || '未知';
+                                        processed.描述 = processed.描述 || '';
+                                        processed.位置 = processed.位置 || '';
+                                    } else if (type === 'skill') {
+                                        processed.品质 = processed.品质 || '未知';
+                                        processed.类型 = processed.类型 || '未知';
+                                        processed.消耗 = processed.消耗 ? ensureString(processed.消耗) : '';
+                                        processed.描述 = processed.描述 || '';
+                                    }
+                                    map[名称] = processed;
+                                }
+                            });
+                        }
+                        return map;
+                    };
+                    const mvuData = {
+                        在场: true,
+                        生命层级: data.生命层级 || '第一层级/普通层级',
+                        等级: parseInt(data.等级) || 1,
+                        种族: data.种族 || '未知',
+                        身份: ensureArray(data.身份),
+                        职业: ensureArray(data.职业),
+                        性格: ensureString(data.性格).trim(),
+                        喜爱: ensureString(data.喜爱).trim(),
+                        外貌: ensureString(data.外貌特质).trim(),
+                        着装: ensureString(data.衣物装饰).trim(),
+                        属性: {
+                            力量: parseAttributeValue(data.属性?.力量),
+                            敏捷: parseAttributeValue(data.属性?.敏捷),
+                            体质: parseAttributeValue(data.属性?.体质),
+                            智力: parseAttributeValue(data.属性?.智力),
+                            精神: parseAttributeValue(data.属性?.精神),
+                        },
+                        技能: arrayToMap(data.技能, 'skill'),
+                        装备: arrayToMap(data.装备, 'equip'),
+                        登神长阶: {
+                            是否开启: !!(data.登神长阶 || (data.生命层级 && data.生命层级.includes('神'))),
+                            神位: data.登神长阶?.神位 || data.神位 || '',
+                            神国: {
+                                名称: data.登神长阶?.神国?.名称 || data.神国?.名称 || '',
+                                描述: data.登神长阶?.神国?.描述 || data.神国?.描述 || '',
+                            },
+                            要素: arrayToMap(data.登神长阶?.要素 || data.要素, 'divinity'),
+                            权能: arrayToMap(data.登神长阶?.权能 || data.权能, 'divinity'),
+                            法则: arrayToMap(data.登神长阶?.法则 || data.法则, 'divinity'),
+                        },
+                        命定契约: false,
+                        好感度: 0,
+                        心里话: '',
+                        背景故事: data.背景故事 || '',
+                    };
+                    let prefix = 'stat_data.';
+                    const targetScope = { type: 'message', message_id: 'latest' };
+                    let currentVars = null;
                     try {
-                        button.innerHTML = '⏳ <span class="btn-text">处理中...</span>';
-                        const characterName = data.姓名 || 'Unknown'; let shortName = characterName.split(/[·\s]/)[0]; const lorebookKey = shortName && shortName.trim().length > 0 ? shortName : characterName;
-                        let bookName = (api.getChatWorldbookName) ? await api.getChatWorldbookName('current') : null;
-                        if (!bookName) { const now = new Date(); const timeStr = `${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}_${now.getDate().toString().padStart(2, '0')}`; const desiredName = `命定之诗-Characters_${timeStr}`; bookName = await api.getOrCreateChatWorldbook('current', desiredName); }
-                        const newEntry = { name: characterName, enabled: true, strategy: { type: 'selective', keys: [lorebookKey] }, position: { type: 'after_character_definition', order: 601 }, content: originalYaml, };
-                        await api.createWorldbookEntries(bookName, [newEntry]);
-                        button.innerHTML = '✅ <span class="btn-text">已保存!</span>'; button.disabled = true;
-                        setTimeout(() => { button.innerHTML = '💾 <span class="btn-text">保存到世界书</span>'; button.disabled = false; }, 1500);
-                    } catch (err) { console.error('Worldbook Save Error:', err); button.innerHTML = '❌ <span class="btn-text">失败</span>'; alert('保存失败: ' + err.message); setTimeout(() => (button.innerHTML = '💾 <span class="btn-text">保存到世界书</span>'), 2000); }
+                        currentVars = await api.getVariables(targetScope);
+                        if (currentVars && currentVars.命定系统) {
+                            prefix = '';
+                        } else if (currentVars && currentVars.stat_data) {
+                            prefix = 'stat_data.';
+                        }
+                        console.log('Detected variable path prefix:', prefix);
+                    } catch (e) {
+                        console.warn('Failed to detect variable path, defaulting to stat_data.', e);
+                    }
+                    const keepIfPresent = val => (val === undefined || val === null ? undefined : val);
+                    const candidates = [];
+                    if (prefix === 'stat_data.') {
+                        candidates.push(currentVars?.stat_data?.命定系统?.关系列表?.[charName]);
+                        candidates.push(currentVars?.stat_data?.[charName]);
+                        candidates.push(currentVars?.stat_data?.ThatNPC);
+                    } else {
+                        candidates.push(currentVars?.命定系统?.关系列表?.[charName]);
+                    }
+                    let preservedFavor;
+                    let preservedHeart;
+                    for (const entry of candidates) {
+                        if (!entry) continue;
+                        if (preservedFavor === undefined) preservedFavor = keepIfPresent(entry?.好感度);
+                        if (preservedHeart === undefined) preservedHeart = keepIfPresent(entry?.心里话);
+                    }
+                    if (preservedFavor !== undefined) mvuData.好感度 = preservedFavor;
+                    if (preservedHeart !== undefined) mvuData.心里话 = preservedHeart;
+                    const updatePayload = {};
+                    if (prefix === 'stat_data.') {
+                        updatePayload['stat_data'] = {
+                            命定系统: {
+                                关系列表: {
+                                    [charName]: mvuData,
+                                },
+                            },
+                        };
+                    } else {
+                        updatePayload['命定系统'] = {
+                            关系列表: {
+                                [charName]: mvuData,
+                            },
+                        };
+                    }
+                    console.log('Attempting to insert MVU data:', updatePayload);
+                    await api.insertOrAssignVariables(updatePayload, targetScope);
+                    button.textContent = '✅';
+                    setTimeout(() => (button.textContent = oldText), 2000);
+                    console.log('MVU Import Success:', charName, mvuData);
+                } catch (err) {
+                    console.error('MVU Import Error:', err);
+                    button.textContent = '❌';
+                    alert('导入失败: ' + err.message);
+                    setTimeout(() => (button.textContent = '📥'), 2000);
+                }
+            }
+            
+            async function saveToChatWorldbook(data, originalYaml, button) {
+                const api = window.TavernHelper || window;
+                if (typeof api.getOrCreateChatWorldbook !== 'function' || typeof api.createWorldbookEntries !== 'function') {
+                    alert('错误：未检测到 Worldbook API。');
+                    return;
+                }
+                try {
+                    const oldText = button.textContent;
+                    button.textContent = '⏳';
+                    const characterName = data.姓名 || 'Unknown';
+                    let shortName = characterName.split(/[·\s]/)[0];
+                    const lorebookKey = shortName && shortName.trim().length > 0 ? shortName : characterName;
+                    let bookName = (typeof api.getChatWorldbookName === 'function') ? await api.getChatWorldbookName('current') : null;
+                    if (!bookName) {
+                        const now = new Date();
+                        const timeStr = `${now.getFullYear()}_${(now.getMonth() + 1).toString().padStart(2, '0')}_${now.getDate().toString().padStart(2, '0')}`;
+                        const desiredName = `命定之诗-Characters_${timeStr}`;
+                        bookName = await api.getOrCreateChatWorldbook('current', desiredName);
+                    }
+                    const newEntry = {
+                        name: characterName,
+                        enabled: true,
+                        strategy: { type: 'selective', keys: [lorebookKey] },
+                        position: { type: 'after_character_definition', order: 601 },
+                        content: originalYaml,
+                    };
+                    await api.createWorldbookEntries(bookName, [newEntry]);
+                    button.textContent = '✅';
+                    setTimeout(() => (button.textContent = oldText), 1000);
+                } catch (err) {
+                    console.error('Worldbook Save Error:', err);
+                    button.textContent = '❌';
+                    alert('保存失败: ' + err.message);
+                    setTimeout(() => (button.textContent = '📥'), 1000);
+                }
+            }
+            
+            function addImportButton(data, originalYaml) {
+                const header = document.querySelector('.sheet-header'); 
+                if (!header) return;
+                
+                // 清理旧版本残留
+                const oldLore = document.getElementById('save-to-lorebook-btn');
+                if (oldLore) oldLore.remove();
+                const oldMvu = document.getElementById('save-to-mvu-btn');
+                if (oldMvu) oldMvu.remove();
+                const oldImport = document.getElementById('import-action-btn');
+                if (oldImport) oldImport.remove();
+                const oldMenu = document.getElementById('import-action-menu');
+                if (oldMenu) oldMenu.remove();
+                
+                const button = document.createElement('button');
+                button.id = 'import-action-btn';
+                button.innerHTML = '📥 <span class="btn-text">导入</span>';
+                button.title = '导入';
+                
+                const menu = document.createElement('div');
+                menu.id = 'import-action-menu';
+                menu.innerHTML = `
+                    <button type="button" data-action="mvu">导入到 MVU 变量</button>
+                    <button type="button" data-action="worldbook">导入到 聊天世界书</button>
+                `;
+                
+                const closeMenu = () => menu.classList.remove('show');
+                const toggleMenu = () => menu.classList.toggle('show');
+                
+                button.addEventListener('click', e => {
+                    e.stopPropagation();
+                    toggleMenu();
                 });
+                
+                menu.addEventListener('click', async e => {
+                    e.stopPropagation();
+                    const target = e.target;
+                    if (!(target instanceof HTMLElement)) return;
+                    const action = target.getAttribute('data-action');
+                    if (!action) return;
+                    closeMenu();
+                    if (action === 'mvu') {
+                        await importToMvuVariables(data, button);
+                    } else if (action === 'worldbook') {
+                        await saveToChatWorldbook(data, originalYaml, button);
+                    }
+                });
+                
+                document.addEventListener('click', () => closeMenu());
+                document.addEventListener('keydown', e => {
+                    if (e.key === 'Escape') closeMenu();
+                });
+                
+                header.appendChild(menu);
                 header.appendChild(button);
             }
             
@@ -334,9 +618,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (yamlDataSource) {
                 const rawYaml = yamlDataSource.textContent;
                 if (rawYaml && rawYaml.trim()) {
-                    const data = parseRobust(rawYaml);
-                    if (data) { renderSheet(data, rawYaml); } 
-                    else { document.body.innerHTML = `<div style="color: #ff6b6b; padding: 20px; font-family: sans-serif; text-align: center; background: rgba(0,0,0,0.8); border-radius: 10px;"><h3>解析错误 (Parsing Error)</h3><p>数据格式似乎有误，请检查YAML。</p></div>`; }
+                    const result = parseRobust(rawYaml);
+                    if (result.success) { 
+                        renderSheet(result.data, rawYaml); 
+                    } else { 
+                        document.body.innerHTML = `<div style="color: #ff6b6b; padding: 20px; font-family: sans-serif; text-align: left; background: rgba(0,0,0,0.8); border-radius: 10px; max-width: 800px; margin: 40px auto;"><h3>解析错误 (Parsing Error)</h3><div style="margin-top: 15px; line-height: 1.6;">${result.error}</div></div>`; 
+                    }
                 }
             }
         });
