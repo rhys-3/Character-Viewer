@@ -481,6 +481,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
           renderCards(document.querySelector('#tab-skills'), data.技能, createSkillCard);
           renderCards(document.querySelector('#tab-equipment'), data.装备, createEquipmentCard);
+          
+          const inventoryContainer = document.querySelector('#tab-inventory');
+          inventoryContainer.innerHTML = '';
+          if (hasArrayContent(data.道具)) {
+            inventoryContainer.innerHTML += '<div class="subsection-title">道具</div>';
+            renderCards(inventoryContainer, data.道具, createEquipmentCard);
+          }
+          if (hasArrayContent(data.特殊物品)) {
+            inventoryContainer.innerHTML += '<div class="subsection-title">特殊物品</div>';
+            renderCards(inventoryContainer, data.特殊物品, createEquipmentCard);
+          }
+          if (hasArrayContent(data.物品)) {
+            inventoryContainer.innerHTML += '<div class="subsection-title">物品</div>';
+            renderCards(inventoryContainer, data.物品, createEquipmentCard);
+          }
 
           const divinityContainer = document.querySelector('#tab-divinity');
           divinityContainer.innerHTML = '';
@@ -553,6 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let hasContent = false;
             if (targetId === 'tab-skills' && data.技能?.length > 0) hasContent = true;
             else if (targetId === 'tab-equipment' && data.装备?.length > 0) hasContent = true;
+            else if (targetId === 'tab-inventory' && (hasArrayContent(data.道具) || hasArrayContent(data.特殊物品) || hasArrayContent(data.物品))) hasContent = true;
             else if (targetId === 'tab-backstory' && data.背景故事) hasContent = true;
             else if (targetId === 'tab-divinity' && hasDivinity) hasContent = true;
             else if (targetId === 'tab-profile') hasContent = true;
